@@ -8,6 +8,7 @@ import { RootState } from '../../redux/store';
 import { addToCart } from '../../redux/reducers/cartReducers';
 import productService from '../../services/product.service';
 import { handleResponse } from '../../function';
+import { API_CONFIG } from '../../services/config';
 
 type Product = {
   id: number;
@@ -53,12 +54,12 @@ const ProductsScreen = () => {
     try {
       setLoading(true);
       const response = await productService.getAll();
-      if (response) {
+     
         const data = handleResponse(response);
         if (data && typeof data === 'object') {
           setProducts(Array.isArray(data) ? data : []);
         }
-      }
+
     } catch (error: any) {
       if (error.response) {
         try {
@@ -148,7 +149,7 @@ const ProductsScreen = () => {
             {products.map((product) => (
               <View key={product.id} style={[tw`bg-white rounded-xl mb-4 shadow-sm overflow-hidden`, { width: '48%' }]}>
                 <Image 
-                  source={{ uri: product.image }} 
+                  source={{ uri: `${API_CONFIG.BASE_URL}${product.image}` }} 
                   style={tw`w-full h-48`}
                   resizeMode="cover"
                 />

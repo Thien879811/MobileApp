@@ -8,6 +8,7 @@ import promotionService from '../../services/promotion.service';
 import { handleResponse } from '../../function';
 import CustomerService from '../../services/customer.service';
 const { width } = Dimensions.get('window');
+import { API_CONFIG } from '../../services/config';
 
 type Customer = {
     id: number;
@@ -55,7 +56,7 @@ const HomeScreen = () => {
             }
         };
         loadCustomer();
-    }, []);
+    }, [customer]);
 
     useEffect(() => {
         fetchDiscounts();
@@ -165,7 +166,7 @@ const HomeScreen = () => {
                                     { width: width * 0.75 }
                                 ]}
                             >
-                                <Image source={{ uri: item.product.image }} style={tw`h-48 bg-gray-100`} />
+                                <Image source={{ uri: `${API_CONFIG.BASE_URL}${item.product.image}` }} style={tw`h-48 bg-gray-100`} />
                                 <View style={tw`p-4`}>
                                     <View style={tw`flex-row items-center mb-2`}>
                                         <View style={tw`bg-red-100 px-3 py-1 rounded-full`}>

@@ -80,6 +80,10 @@ const HistoryScreen = () => {
                 return 'Đang giao';
             case 3:
                 return 'Hoàn thành';
+            case 4:
+                return 'Đã hủy';
+            case 5:
+                return 'Đơn hàng online';
             default:
                 return 'Không xác định';
         }
@@ -97,6 +101,10 @@ const HistoryScreen = () => {
                 return 'bg-purple-500';
             case 3:
                 return 'bg-green-500';
+            case 4:
+                return 'bg-red-500';
+            case 5:
+                return 'bg-blue-500';
             default:
                 return 'bg-gray-500';
         }

@@ -5,6 +5,7 @@ import promotionService from '../../services/promotion.service';
 import { handleResponse } from '../../function';
 import { useState } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { API_CONFIG } from '../../services/config';
 
 const { width } = Dimensions.get('window');
 
@@ -117,7 +118,7 @@ const PromotionScreen = ({ navigation }: PromotionScreenProps) => {
                                 >
                                     <View style={tw`flex-row`}>
                                         <Image 
-                                            source={{ uri: promotion.product?.image }}
+                                            source={{ uri: `${API_CONFIG.BASE_URL}${promotion.product?.image}` }}
                                             style={[tw`rounded-lg`, { width: 100, height: 100 }]}
                                         />
                                         <View style={tw`flex-1 ml-4`}>

@@ -7,13 +7,20 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { customerLogout } from '../../redux/reducers/customerReducers';
 import { RootState } from '../../redux/store';
+import { useEffect } from 'react';
+
+type Customer = {
+    id: number;
+    name: string;
+    phone: string;
+    diem: number;
+};
 
 const ProfileScreen = () => {
     const navigation = useNavigation();
     const dispatch = useDispatch();
-    const customer = useSelector((state: RootState) => state.customer.customer);
     const [showSettings, setShowSettings] = useState(false);
-
+    const [customer, setCustomer] = useState<Customer | null>(null);
     const handleLogout = async () => {
         await AsyncStorage.removeItem('customer');
         dispatch(customerLogout());
@@ -24,6 +31,16 @@ const ProfileScreen = () => {
             })
         );
     };
+
+    useEffect(() => {
+        const loadCustomer = async () => {
+            const customerData = await AsyncStorage.getItem('customer');
+            if (customerData) {
+                setCustomer(JSON.parse(customerData));
+            }
+        };
+        loadCustomer();
+    }, [customer]);
 
     return (
         <SafeAreaView style={tw`flex-1 bg-gray-50`}>

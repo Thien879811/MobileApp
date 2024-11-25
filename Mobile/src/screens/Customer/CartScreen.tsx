@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OrderService from '../../services/order.service';
 import { handleResponse } from '../../function';
+import { API_CONFIG } from '../../services/config';
 
 type Customer = {
     id: number;
@@ -101,7 +102,7 @@ const CartScreen = () => {
         } catch (error: any) {
             const response = handleResponse(error.response);
             Alert.alert('Lỗi', response?.message || 'Đặt hàng thất bại');
-            console.error('Lỗi đặt hàng:', error);
+            console.error('Lỗi đặt hàng:', error.response);
         } finally {
             setIsLoading(false);
         }
@@ -126,7 +127,7 @@ const CartScreen = () => {
             cartItems.map((item: any) => (
                 <View key={item.id} style={tw`flex-row p-4 border-b border-gray-200`}>
                 <Image 
-                    source={{ uri: item.image }} 
+                    source={{ uri: `${API_CONFIG.BASE_URL}${item.image}` }} 
                     style={tw`w-20 h-20 rounded-lg`} 
                 />
                 <View style={tw`flex-1 ml-4`}>
