@@ -22,8 +22,6 @@ const ProfileScreen = ({ navigation }) => {
         try {
             const employee = await employeeService.get(username.id);
             const data = handleResponse(employee);
-            console.log(data);
-            
             setUser(data);
         } catch (error) {
             console.error('Error fetching employee info:', error);

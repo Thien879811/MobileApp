@@ -36,48 +36,53 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
   const username = useSelector(selectAuth).user;
   const dispatch = useDispatch();
   const attendance = useSelector((state: AttendanceState) => state.attendance.attendance);
+  const [employee, setEmployee] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchLichLamViec = async () => {
-      try {
-        const response = await employeeService.lichLamViec(username.id);
-        const data = handleResponse(response);
-        setLichLamViec(data);
-
-        const today = new Date().toISOString().split('T')[0];
-        console.log(today);
-        
-        const todayShift = data.find((shift: Shift) => shift.date === today);
-        setTodayShift(todayShift);
-
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    fetchLichLamViec();
-
+  const fetchChamCong = async () => {
     const today = new Date().toISOString().split('T')[0];
-    const fetchChamCong = async () => {
-      try {
-        const req = await employeeService.fetchChamCong(username.id, today);
-        const data = handleResponse(req);
-        if(data){
-          dispatch(setAttendance(data.data));
-        }
-      } catch (error) {
-        console.log(error);
+    try {
+      const req = await employeeService.fetchChamCong(employee.id, today);
+      const data = handleResponse(req);
+      console.log(data)
+      if(data){
+        dispatch(setAttendance(data));
       }
-    };
-    fetchChamCong();
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-    fetchMonthlyAttendance();
+  const fetchEmployee = async () => {
+    try {
+      const response = await employeeService.get(username.id);
+      const data = handleResponse(response);
+      console.log(data);
+      setEmployee(data);
+    } catch (error: any) {
+      console.error(error);
+    }
+  };
 
-  }, [dispatch, selectedMonth]);
+  const fetchLichLamViec = async () => {
+    try {
+      const response = await employeeService.lichLamViec(employee.id);
+      const data = handleResponse(response);
+      setLichLamViec(data);
+
+      const today = new Date().toISOString().split('T')[0];
+      console.log(today);
+      
+      const todayShift = data.find((shift: Shift) => shift.date === today);
+      setTodayShift(todayShift);
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const fetchMonthlyAttendance = async () => {
     try {
-      const response = await employeeService.fetchChamCongByMonth(username.id, selectedMonth);
+      const response = await employeeService.fetchChamCongByMonth(employee.id, selectedMonth);
       const data = handleResponse(response);
       if (data && data.success) {
         setMonthlyAttendance(data.data || []);
@@ -87,6 +92,18 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
       setMonthlyAttendance([]);
     }
   };
+
+  useEffect(() => {
+    fetchEmployee();
+  }, []);
+
+  useEffect(() => {
+    if (employee) {
+      fetchLichLamViec();
+      fetchMonthlyAttendance();
+      fetchChamCong();
+    }
+  }, [employee, selectedMonth]);
 
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { 

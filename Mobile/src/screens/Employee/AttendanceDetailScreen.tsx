@@ -78,13 +78,17 @@ const AttendanceDetailScreen = () => {
       const responseData = handleResponse(response);
       if (responseData.success) {
         dispatch(setAttendance(responseData.data));
-        Alert.alert('Chấm công', responseData.message);
+        Alert.alert('Thành công', 'Chấm công đã được tạo thành công');
         navigation.navigate('Attendance' as never);
       }
     } catch (error: any) {
-      if (error.response.status === 400) {
-        dispatch(setError('Bạn đã chấm công'));
-        Alert.alert('Chấm công', error.response.data.message);
+      if (error.response?.status === 400) {
+        const err = handleResponse(error.response);
+        dispatch(setError(err.message));
+        Alert.alert('Chấm công', err.message || 'Không thể chấm công');
+      } else {
+        dispatch(setError('Có lỗi xảy ra'));
+        Alert.alert('Lỗi', 'Có lỗi xảy ra khi chấm công');
       }
     } finally {
       dispatch(setLoading(false));
@@ -98,7 +102,7 @@ const AttendanceDetailScreen = () => {
       const responseData = handleResponse(response);
       if(responseData.success){
         dispatch(setAttendance(responseData.data));
-        Alert.alert('Chấm công', responseData.message);
+        Alert.alert('Thành công', 'Chấm công đã được cập nhật thành công');
         navigation.navigate('Attendance' as never);
       }
     } catch (error: any) {
@@ -107,9 +111,13 @@ const AttendanceDetailScreen = () => {
         Alert.alert('Lỗi', 'Không thể kết nối đến máy chủ');
         return;
       }
-      const err = handleResponse(error.response);
-      dispatch(setError(err.message));
-      Alert.alert('Chấm công', err.message || 'Không thể chấm công');
+      if (error.response?.status === 404) {
+        dispatch(setError('Không tìm thấy bản ghi chấm công'));
+        Alert.alert('Lỗi', 'Không tìm thấy bản ghi chấm công');
+      } else {
+        dispatch(setError('Có lỗi xảy ra'));
+        Alert.alert('Lỗi', 'Có lỗi xảy ra khi cập nhật chấm công');
+      }
     } finally {
       dispatch(setLoading(false));
     }
@@ -193,7 +201,7 @@ const AttendanceDetailScreen = () => {
       <View style={tw`absolute bottom-8 left-0 right-0 px-4`}>
         <View style={tw`flex-row justify-between`}>
           <TouchableOpacity 
-            style={tw`flex-1 mr-2 py-4 bg-white  0 rounded-xl items-center shadow-sm`}
+            style={tw`flex-1 mr-2 py-4 bg-white rounded-xl items-center shadow-sm`}
             onPress={handleReject}
           >
             <Text style={tw`text-lg font-semibold`}>Từ chối</Text>

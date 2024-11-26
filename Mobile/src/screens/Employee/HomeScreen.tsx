@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView, SafeAreaView, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { authLogout } from '../../redux/reducers/authReducers';
@@ -18,6 +18,7 @@ interface LichLamViec {
   date: string;
   time_start: string;
   time_end: string;
+  status: number;
 }
 
 const HomeScreen: React.FC = () => {
@@ -28,22 +29,58 @@ const HomeScreen: React.FC = () => {
   const [lichLamViec, setLichLamViec] = useState<LichLamViec[]>([]);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [employee, setEmployee] = useState<any>(null);
 
   useEffect(() => {
-    const fetchLichLamViec = async () => {
-      const response = await employeeService.lichLamViec(username.id);
+    fetchEmployee();
+  }, []);
+
+  useEffect(() => {
+    if (employee) {
+      fetchLichLamViec();
+    }
+  }, [employee]);
+
+  const fetchEmployee = async () => {
+    try {
+      const response = await employeeService.get(username.id);
       const data = handleResponse(response);
+      console.log(data);
+      setEmployee(data);
+    } catch (error: any) {
+      console.error(error);
+    }
+  };
+
+  const fetchLichLamViec = async () => {
+    try {
+      const response = await employeeService.lichLamViec(employee.id);
+      const data = handleResponse(response);
+      console.log(data)
       const filteredData = filterDataByViewMode(data);
       setLichLamViec(filteredData);
-    };
-    fetchLichLamViec();
+    } catch (error: any) {
+      const response = handleResponse(error.response);
+      console.log(response);
+    }
+  };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (employee) {
+        fetchLichLamViec();
+      }
+    }, [viewMode, employee])
+  );
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDate(new Date());
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [viewMode]);
+  }, []);
 
   const filterDataByViewMode = (data: LichLamViec[]) => {
     const today = new Date();
@@ -113,15 +150,16 @@ const HomeScreen: React.FC = () => {
       ]
     );
 
-  const res = {
-    date: date,
-    staff_id: username.id,
-    reason: "Xin nghỉ phép",
-    status: "-1"
-  };
+    const res = {
+      date: date,
+      staff_id: employee.id,
+      reason: "Xin nghỉ phép",
+      status: "-1"
+    };
     try {
       const response = await employeeService.createLeaveRequest(res);
       handleResponse(response);
+      fetchLichLamViec();
     } catch (error) {
       console.error(error);
     }
@@ -202,14 +240,6 @@ const HomeScreen: React.FC = () => {
               >
                 <Icon name="information-circle-outline" size={20} color="#fff" />
                 <Text style={tw`text-white font-medium ml-2`}>Chi tiết</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={() => handleLeaveRequest(item.date)}
-                style={tw`flex-1  rounded-xl py-3 ml-2 flex-row items-center justify-center`}
-              >
-                <Icon name="calendar-outline" size={20} color="#3B82F6" />
-                <Text style={tw` font-medium ml-2`}>Xin nghỉ</Text>
               </TouchableOpacity>
             </View>
           </View>

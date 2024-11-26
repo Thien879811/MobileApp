@@ -41,21 +41,21 @@ const RedeemPointsScreen = () => {
         {
         discount: '5%',
         max_value: '20000',
-        points: 25,
+        points: 1000,
         isOwned: false,
         minSpend: '100000'
         },
         {
         discount: '10%',
         max_value: '50000',
-        points: 40,
+        points: 1500,
         isOwned: false,
         minSpend: '200000'
         },
         {
         discount: '15%',
         max_value: '100000',
-        points: 50,
+        points: 2000,
         isOwned: false,
         minSpend: '300000'
         },

@@ -30,6 +30,10 @@ class PromotionService {
     async getPromotionByCustomerId(id) {
         return (await this.api.get(`/customer/${id}`)).data;
     }
+
+    async getPromotionCode() {
+        return (await this.api.get(`/code`)).data;
+    }
 }
 
 export default new PromotionService();

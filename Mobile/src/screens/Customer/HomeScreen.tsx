@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Dimensions, Modal, Image, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import tw from 'tailwind-react-native-classnames';
-import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import promotionService from '../../services/promotion.service';
 import { handleResponse } from '../../function';
@@ -47,22 +47,42 @@ const HomeScreen = () => {
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [redeemablePromotions, setRedeemablePromotions] = useState<Promotion[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const loadCustomer = async () => {
+    const loadCustomer = async () => {
+        try {
             const customerData = await AsyncStorage.getItem('customer');
             if (customerData) {
-                setCustomer(JSON.parse(customerData));
+                const parsedCustomer = JSON.parse(customerData);
+                const response = await CustomerService.get(parsedCustomer.id);
+                const updatedCustomer = handleResponse(response);
+                if (updatedCustomer) {
+                    setCustomer(updatedCustomer);
+                    await AsyncStorage.setItem('customer', JSON.stringify(updatedCustomer));
+                }
             }
-        };
-        loadCustomer();
-    }, [customer]);
+        } catch (error) {
+            console.error('Error loading customer:', error);
+        }
+    };
 
-    useEffect(() => {
-        fetchDiscounts();
-        fetchRedeemablePromotions();
-    }, []);
-
+    useFocusEffect(
+        React.useCallback(() => {
+            const loadData = async () => {
+                setLoading(true);
+                try {
+                    await loadCustomer();
+                    await fetchDiscounts();
+                    await fetchRedeemablePromotions();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            loadData();
+        }, [])
+    );
 
     const fetchDiscounts = async () => {
         try {   
@@ -72,7 +92,7 @@ const HomeScreen = () => {
             setPromotions(filteredData);
             return filteredData;
         } catch (error) {
-            console.log(error);
+            console.error('Error fetching discounts:', error);
             setPromotions([]);
         }
     };
@@ -83,10 +103,19 @@ const HomeScreen = () => {
             const data = handleResponse(response) || [];
             setRedeemablePromotions(data);
         } catch (error) {
-            console.log(error);
+            console.error('Error fetching redeemable promotions:', error);
             setRedeemablePromotions([]);
         }
     }
+
+    if (loading) {
+        return (
+            <SafeAreaView style={tw`flex-1 bg-white justify-center items-center`}>
+                <Text style={tw`text-lg text-gray-600`}>Đang tải...</Text>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={tw`flex-1 bg-white`}>
             <View style={tw`bg-blue-500 px-5 pt-8 pb-6`}>

@@ -1,5 +1,5 @@
 import React, { useState ,useEffect} from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { removeFromCart, updateQuantity, clearCart } from '../../redux/reducers/cartReducers';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,10 +10,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import OrderService from '../../services/order.service';
 import { handleResponse } from '../../function';
 import { API_CONFIG } from '../../services/config';
+import ProductService from '../../services/product.service';
+import PromotionService from '../../services/promotion.service';
 
 type Customer = {
     id: number;
     name: string;
+}
+
+type Product = any
+type PromotionCode = {
+    id: number;
+    name: string;
+    code: string;
+    discount_percentage: string;
+    quantity: string;
+    start_date: string;
+    end_date: string;
+    max_value: string;
+    min_value: string;
 }
 
 const CartScreen = () => {
@@ -22,6 +37,13 @@ const CartScreen = () => {
     const dispatch = useDispatch();
     const cartItems = useSelector((state: any) => state.cart.items);
     const [customer, setCustomer] = useState<Customer | null>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [promotionCode, setPromotionCode] = useState<PromotionCode[]>([]);
+    const [voucher_code, setVoucherCode] = useState('');
+    const [discount, setDiscount] = useState(0);
+    const [voucherApplied, setVoucherApplied] = useState(false);
+
     useEffect(() => {
         const loadCustomer = async () => {
             const customerData = await AsyncStorage.getItem('customer');
@@ -30,8 +52,103 @@ const CartScreen = () => {
             }
         };
         loadCustomer();
+        fetchProducts();
+        fetchPromotionCode();
     }, []);
 
+    const fetchPromotionCode = async () => {
+        try {   
+            const response = await PromotionService.getPromotionCode();
+            const data = handleResponse(response);
+            if (data.success) {
+                console.log(data.data);
+                setPromotionCode(data.data);
+            }
+        } catch (error: any) {
+            const response = handleResponse(error.response);
+            console.log(response);
+        }
+    }
+
+    const handleApplyVoucher = () => {
+        if (voucherApplied) {
+            Alert.alert('Thông báo', 'Bạn đã áp dụng một mã khuyến mãi rồi');
+            return;
+        }
+
+        if (!voucher_code) {
+            Alert.alert('Lỗi', 'Vui lòng nhập mã khuyến mãi');
+            return;
+        }
+
+        const promotion = promotionCode?.find((p) => p.code == voucher_code);
+
+        if (!promotion) {
+            Alert.alert('Lỗi', 'Mã khuyến mãi không hợp lệ');
+            setDiscount(0);
+            return;
+        }
+
+        if (parseInt(promotion.quantity) <= 0) {
+            Alert.alert('Lỗi', 'Mã khuyến mãi đã hết lượt sử dụng');
+            setDiscount(0);
+            return;
+        }
+
+        const total = calculateTotal();
+
+        // Kiểm tra điều kiện min_value và max_value
+        if (promotion.min_value && total < parseFloat(promotion.min_value)) {
+            Alert.alert('Lỗi', `Giá trị đơn hàng tối thiểu phải từ ${formatCurrency(parseFloat(promotion.min_value))}`);
+            setDiscount(0);
+            return;
+        }
+
+        // Kiểm tra max_value
+        if (promotion.max_value) {
+            const discountAmount = total * (parseFloat(promotion.discount_percentage) / 100);
+            if (discountAmount > parseFloat(promotion.max_value)) {
+                const effectiveDiscount = (parseFloat(promotion.max_value) / total) * 100;
+                setDiscount(effectiveDiscount);
+            } else {
+                setDiscount(parseFloat(promotion.discount_percentage));
+            }
+        } else {
+            setDiscount(parseFloat(promotion.discount_percentage));
+        }
+
+        setVoucherApplied(true);
+        Alert.alert('Thành công', 'Áp dụng mã khuyến mãi thành công');
+    }
+
+    const fetchProducts = async () => {
+        try {
+          setLoading(true);
+          const response = await ProductService.getAll();
+         
+            const data = handleResponse(response);
+            if (data && typeof data === 'object') {
+              setProducts(Array.isArray(data) ? data : []);
+            }
+    
+        } catch (error: any) {
+          if (error.response) {
+            try {
+              const errorResponse = handleResponse(error.response);
+              console.error('Error fetching products:', errorResponse.message);
+              Alert.alert('Error', errorResponse.message);
+            } catch (parseError) {
+              console.error('Error parsing response:', parseError);
+              Alert.alert('Error', 'Invalid response format');
+            }
+          } else {
+            console.error('Error fetching products:', error);
+            Alert.alert('Error', 'Failed to fetch products');
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
 
     const handleRemoveItem = (productId: number) => {
         dispatch(removeFromCart(productId));
@@ -45,11 +162,12 @@ const CartScreen = () => {
     };
 
     const calculateTotal = () => {
-        return cartItems.reduce((total: number, item: any) => {
-        const price = item.selling_price;
-        const discountedPrice = item.discount ? price * (1 - item.discount / 100) : price;
-        return total + (discountedPrice * item.quantity);
+        const subtotal = cartItems.reduce((total: number, item: any) => {
+            const price = item.selling_price;
+            const discountedPrice = item.discount ? price * (1 - item.discount / 100) : price;
+            return total + (discountedPrice * item.quantity);
         }, 0);
+        return discount ? subtotal * (1 - discount / 100) : subtotal;
     };
 
     const formatCurrency = (amount: number) => {
@@ -76,12 +194,21 @@ const CartScreen = () => {
                 Alert.alert('Lỗi', `Số lượng không hợp lệ cho ${item.product_name}`);
                 return;
             }
+
+            // Tìm sản phẩm tương ứng trong danh sách products
+            const product = products.find(p => p.id === item.id);
+            if (product && item.quantity > product.quantity - 5) {
+                Alert.alert('Số lượng sản phẩm', `${item.product_name} không khả dụng`);
+                return;
+            }
         }
 
         const data = {
             customer_id: customer.id,
             pays_id: 2,
             status: 5,
+            voucher_code: voucher_code,
+            discount: discount,
             products: cartItems.map((item: any) => ({
                 product_id: item.id,
                 soluong: item.quantity,
@@ -97,7 +224,7 @@ const CartScreen = () => {
             if (dataResponse.status === 'success') {
                 dispatch(clearCart());
                 Alert.alert('Thành công', 'Đặt hàng thành công');
-                navigation.navigate('History');
+                navigation.navigate('Home');
             }
         } catch (error: any) {
             const response = handleResponse(error.response);
@@ -180,12 +307,37 @@ const CartScreen = () => {
 
         {cartItems.length > 0 && (
             <View style={tw`p-4 border-t border-gray-200`}>
+            <View style={tw`flex-row items-center mb-4`}>
+                <TextInput
+                    style={tw`flex-1 p-2 border border-gray-300 rounded-l-lg`}
+                    placeholder="Nhập mã khuyến mãi"
+                    value={voucher_code}
+                    onChangeText={setVoucherCode}
+                />
+                <TouchableOpacity 
+                    style={tw`bg-blue-600 p-2.5 rounded-r-lg`}
+                    onPress={handleApplyVoucher}
+                >
+                    <Text style={tw`text-white font-bold`}>Áp dụng</Text>
+                </TouchableOpacity>
+            </View>
             <View style={tw`flex-row justify-between items-center mb-4`}>
                 <Text style={tw`text-lg font-medium`}>Tổng tiền:</Text>
                 <Text style={tw`text-xl font-bold text-red-500`}>{formatCurrency(calculateTotal())}</Text>
             </View>
-            <TouchableOpacity style={tw`bg-blue-600 p-4 rounded-lg items-center`} onPress={handleSubmitOrder}>
-                <Text style={tw`text-white text-base font-bold`}>Thanh toán</Text>
+            <TouchableOpacity 
+                style={[
+                    tw`bg-blue-600 p-4 rounded-lg items-center`,
+                    isLoading && tw`opacity-50`
+                ]} 
+                onPress={handleSubmitOrder}
+                disabled={isLoading}
+            >
+                {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={tw`text-white text-base font-bold`}>Thanh toán</Text>
+                )}
             </TouchableOpacity>
             </View>
         )}
