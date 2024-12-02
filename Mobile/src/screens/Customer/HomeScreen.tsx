@@ -30,7 +30,12 @@ type Promotion = {
     description: string;
     discount_percentage: number;
     product: Product;
+    present?: Product;
     points_required?: number;
+    quantity: number;
+    max_value: number;
+    min_value: number;
+    end_date: string;
 };
 
 type RootStackParamList = {
@@ -46,7 +51,6 @@ const HomeScreen = () => {
     const navigation = useNavigation<NavigationProp<RootStackParamList>>();
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [promotions, setPromotions] = useState<Promotion[]>([]);
-    const [redeemablePromotions, setRedeemablePromotions] = useState<Promotion[]>([]);
     const [loading, setLoading] = useState(true);
 
     const loadCustomer = async () => {
@@ -73,7 +77,6 @@ const HomeScreen = () => {
                 try {
                     await loadCustomer();
                     await fetchDiscounts();
-                    await fetchRedeemablePromotions();
                 } catch (error) {
                     console.error('Error loading data:', error);
                 } finally {
@@ -97,16 +100,10 @@ const HomeScreen = () => {
         }
     };
 
-    const fetchRedeemablePromotions = async () => {
-        try {
-            const response = await promotionService.getPromotionByCustomerId(customer?.id || 0);
-            const data = handleResponse(response) || [];
-            setRedeemablePromotions(data);
-        } catch (error) {
-            console.error('Error fetching redeemable promotions:', error);
-            setRedeemablePromotions([]);
-        }
-    }
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+    };
 
     if (loading) {
         return (
@@ -191,23 +188,39 @@ const HomeScreen = () => {
                             <TouchableOpacity 
                                 key={item.id} 
                                 style={[
-                                    tw`mr-4 bg-white rounded-2xl overflow-hidden shadow-sm`, 
+                                    tw`mr-4 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100`, 
                                     { width: width * 0.75 }
                                 ]}
                             >
-                                <Image source={{ uri: `${API_CONFIG.BASE_URL}${item.product.image}` }} style={tw`h-48 bg-gray-100`} />
+                                <Image 
+                                    source={{ uri: `${API_CONFIG.BASE_URL}${item.product.image}` }} 
+                                    style={tw`h-48 bg-gray-100`} 
+                                />
                                 <View style={tw`p-4`}>
-                                    <View style={tw`flex-row items-center mb-2`}>
-                                        <View style={tw`bg-red-100 px-3 py-1 rounded-full`}>
-                                            <Text style={tw`text-red-600 font-medium`}>Giảm {item.discount_percentage}%</Text>
-                                        </View>
-                                    </View>
-                                    <Text style={tw`text-base font-bold text-gray-800 mb-1`}>
+                                    <Text style={tw`text-base font-bold text-gray-800 mb-2`}>
                                         {item.name}
                                     </Text>
-                                    <Text style={tw`text-sm text-gray-500`}>
-                                        {item.description}
+                                    <Text style={tw`text-gray-600 text-sm mb-2`}>
+                                        {item.product.product_name}
                                     </Text>
+                                    <View style={tw`mt-2 bg-red-50 self-start rounded-full px-3 py-1`}>
+                                        {item.present ? (
+                                            <Text style={tw`text-red-600 text-sm font-medium`}>
+                                                Giảm {item.discount_percentage}% khi mua {item.present.product_name}
+                                            </Text>
+                                        ) : (
+                                            <Text style={tw`text-red-600 text-sm font-medium`}>
+                                                Giảm {item.discount_percentage}%
+                                                {item.quantity ? ` khi mua ${item.quantity} sản phẩm chỉ áp dụng khi mua tại cửa hàng` : ''}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <View style={tw`mt-3 flex-row items-center`}>
+                                        <Icon name="time-outline" size={16} color="#4B5563" />
+                                        <Text style={tw`text-gray-600 text-sm ml-1`}>
+                                            HSD: {formatDate(item.end_date)}
+                                        </Text>
+                                    </View>
                                 </View>
                             </TouchableOpacity>
                         )) : (

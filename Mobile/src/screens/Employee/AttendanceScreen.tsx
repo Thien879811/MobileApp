@@ -9,9 +9,15 @@ import { setAttendance } from '../../redux/reducers/attenceReducers';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 interface Shift {
+  id: number;
+  staff_id: number;
   date: string;
   time_start: string;
   time_end: string;
+  status: string | null;
+  reason: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface NavigationProp {
@@ -38,12 +44,16 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
   const attendance = useSelector((state: AttendanceState) => state.attendance.attendance);
   const [employee, setEmployee] = useState<any>(null);
 
+  useEffect(() => {
+    fetchEmployee();
+  }, []);
+
+
   const fetchChamCong = async () => {
     const today = new Date().toISOString().split('T')[0];
     try {
       const req = await employeeService.fetchChamCong(employee.id, today);
       const data = handleResponse(req);
-      console.log(data)
       if(data){
         dispatch(setAttendance(data));
       }
@@ -56,7 +66,6 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
     try {
       const response = await employeeService.get(username.id);
       const data = handleResponse(response);
-      console.log(data);
       setEmployee(data);
     } catch (error: any) {
       console.error(error);
@@ -67,16 +76,13 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
     try {
       const response = await employeeService.lichLamViec(employee.id);
       const data = handleResponse(response);
-      setLichLamViec(data);
-
       const today = new Date().toISOString().split('T')[0];
-      console.log(today);
-      
-      const todayShift = data.find((shift: Shift) => shift.date === today);
-      setTodayShift(todayShift);
-
-    } catch (error) {
-      console.log(error);
+      const todayShift = data.find((shift: Shift) => shift.date == today);
+      setTodayShift(todayShift || null);
+      setLichLamViec(data);
+    } catch (error: any) {
+      const response = handleResponse(error.response);
+      console.log(response);
     }
   };
 
@@ -92,10 +98,6 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
       setMonthlyAttendance([]);
     }
   };
-
-  useEffect(() => {
-    fetchEmployee();
-  }, []);
 
   useEffect(() => {
     if (employee) {

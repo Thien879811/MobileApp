@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, TextInput } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import tw from 'tailwind-react-native-classnames';
 import { useNavigation } from '@react-navigation/native';
@@ -30,6 +30,7 @@ type Product = {
     name: string;
     discount_percentage: string;
     description: string;
+    quantity?: number;
     present?: {
       id: number;
       product_name: string;
@@ -44,22 +45,33 @@ const ProductsScreen = () => {
   const dispatch = useDispatch();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const cart = useSelector((state: RootState) => state.cart);
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    filterProducts();
+  }, [searchText, products]);
+
+  const filterProducts = () => {
+    const filtered = products.filter(product => 
+      product.product_name.toLowerCase().includes(searchText.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  };
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const response = await productService.getAll();
-     
-        const data = handleResponse(response);
-        if (data && typeof data === 'object') {
-          setProducts(Array.isArray(data) ? data : []);
-        }
-
+      const data = handleResponse(response);
+      if (data && typeof data === 'object') {
+        setProducts(Array.isArray(data) ? data : []);
+      }
     } catch (error: any) {
       if (error.response) {
         try {
@@ -136,6 +148,19 @@ const ProductsScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Search Bar */}
+      <View style={tw`px-4 py-2 bg-white shadow-sm`}>
+        <View style={tw`flex-row items-center bg-gray-100 rounded-lg px-3 py-2`}>
+          <Icon name="search-outline" size={20} color="#666" />
+          <TextInput
+            style={tw`flex-1 ml-2 text-base`}
+            placeholder="Tìm kiếm sản phẩm..."
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
+      </View>
+
       {/* Loading Indicator */}
       {loading ? (
         <View style={tw`flex-1 justify-center items-center`}>
@@ -146,7 +171,7 @@ const ProductsScreen = () => {
         /* Product Grid */
         <ScrollView style={tw`flex-1 px-2`}>
           <View style={tw`flex-row flex-wrap justify-between mt-4`}>
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <View key={product.id} style={[tw`bg-white rounded-xl mb-4 shadow-sm overflow-hidden`, { width: '48%' }]}>
                 <Image 
                   source={{ uri: `${API_CONFIG.BASE_URL}${product.image}` }} 
@@ -154,14 +179,24 @@ const ProductsScreen = () => {
                   resizeMode="cover"
                 />
                 <View style={tw`p-3`}>
-                  <Text style={tw`font-semibold text-gray-800 text-base mb-2 h-12`} numberOfLines={2}>
+                  <Text style={tw`font-semibold text-gray-800 text-base mb-2`} numberOfLines={2}>
                     {product.product_name}
                   </Text>
+                  <View style={tw`flex-row items-center justify-between mb-2`}>
+                    <Text style={tw`text-gray-600 text-sm`}>
+                      Còn lại: {product.quantity < 0 ? 0 : product.quantity}
+                    </Text>
+                  </View>
                   {product.promotion && product.promotion.length > 0 ? (
-                    <View>
-                      <Text style={tw`text-blue-600 font-bold text-lg mb-1`}>
-                        {product.selling_price.toLocaleString()}đ
-                      </Text>
+                    <View >
+                      <View style={tw`flex-row items-center mb-1`}>
+                        <Text style={tw`text-gray-500 text-sm line-through mr-2`}>
+                          {product.selling_price.toLocaleString()}đ
+                        </Text>
+                        <Text style={tw`text-blue-600 font-bold text-lg`}>
+                          {calculateDiscountedPrice(product.selling_price, product.promotion[0].discount_percentage).toLocaleString()}đ
+                        </Text>
+                      </View>
                       {product.promotion[0].present ? (
                         <View style={tw`bg-red-100 rounded-full px-2 py-1 mb-3 self-start`}>
                           <Text style={tw`text-xs text-red-600 font-medium`}>
@@ -171,7 +206,10 @@ const ProductsScreen = () => {
                       ) : (
                         <View style={tw`bg-red-100 rounded-full px-2 py-1 mb-3 self-start`}>
                           <Text style={tw`text-xs text-red-600 font-medium`}>
-                            Giảm {product.promotion[0].discount_percentage}%
+                            {product.promotion[0].quantity ? 
+                                `Giảm ${product.promotion[0].discount_percentage}% khi mua ${product.promotion[0].quantity} sản phẩm chỉ áp dụng khi mua tại cửa hàng` :
+                                `Giảm ${product.promotion[0].discount_percentage}%`
+                            }
                           </Text>
                         </View>
                       )}
@@ -182,10 +220,10 @@ const ProductsScreen = () => {
                     </Text>
                   )}
                   <TouchableOpacity
-                    style={tw`bg-blue-600 py-2.5 rounded-lg items-center`}
+                    style={tw`bg-blue-600 py-2.5 rounded-lg items-center `}
                     onPress={() => handleAddToCart(product)}
                   >
-                    <Text style={tw`text-white font-semibold`}>Add to Cart</Text>
+                    <Text style={tw`text-white font-semibold`}>Thêm vào giỏ</Text>
                   </TouchableOpacity>
                 </View>
               </View>

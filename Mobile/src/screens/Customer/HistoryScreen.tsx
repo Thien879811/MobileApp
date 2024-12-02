@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+  import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import tw from 'tailwind-react-native-classnames';
 import { useNavigation } from '@react-navigation/native';
@@ -33,10 +33,19 @@ const HistoryScreen = () => {
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [totalAmount, setTotalAmount] = useState(0);
 
     useEffect(() => {
         fetchOrders();
     }, [selectedDate]);
+
+    useEffect(() => {
+        // Calculate total amount whenever orders change
+        const total = orders.reduce((sum, order) => {
+            return sum + (order.total - (order.discount || 0));
+        }, 0);
+        setTotalAmount(Math.round(total));
+    }, [orders]);
 
     const fetchOrders = async () => {
         try {
@@ -65,7 +74,7 @@ const HistoryScreen = () => {
     };
 
     const formatPrice = (price: number) => {
-        return price.toLocaleString('vi-VN') + 'đ';
+        return Math.round(price).toLocaleString('vi-VN') + 'đ';
     };
 
     const getStatusText = (status: number) => {
@@ -153,6 +162,15 @@ const HistoryScreen = () => {
                 />
             </View>
 
+            {!loading && orders.length > 0 && (
+                <View style={tw`bg-white p-4 border-b border-gray-200`}>
+                    <View style={tw`flex-row justify-between items-center`}>
+                        <Text style={tw`text-gray-700 font-medium`}>Tổng số tiền:</Text>
+                        <Text style={tw`text-xl font-bold text-blue-600`}>{formatPrice(totalAmount)}</Text>
+                    </View>
+                </View>
+            )}
+
             <ScrollView style={tw`flex-1`}>
                 {loading ? (
                     <View style={tw`flex-1 justify-center items-center p-4`}>
@@ -230,13 +248,13 @@ const HistoryScreen = () => {
                                                     <Icon name="discount" size={20} color="#DC2626" />
                                                     <Text style={tw`text-gray-800 ml-2`}>Giảm giá:</Text>
                                                 </View>
-                                                <Text style={tw`text-red-600 font-medium`}>{order.discount}%</Text>
+                                                <Text style={tw`text-red-600 font-medium`}>-{formatPrice(Math.round(order.discount))}</Text>
                                             </View>
                                         )}
                                         <View style={tw`flex-row justify-between items-center bg-blue-50 p-3 rounded-lg`}>
                                             <Text style={tw`text-gray-800 font-bold`}>Tổng cộng:</Text>
                                             <Text style={tw`text-blue-600 font-bold text-lg`}>
-                                                {formatPrice(order.total - (order.total * order.discount / 100))}
+                                                {formatPrice(Math.round(order.total - order.discount))}
                                             </Text>
                                         </View>
                                     </View>

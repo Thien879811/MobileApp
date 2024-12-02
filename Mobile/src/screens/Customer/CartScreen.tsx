@@ -43,6 +43,7 @@ const CartScreen = () => {
     const [voucher_code, setVoucherCode] = useState('');
     const [discount, setDiscount] = useState(0);
     const [voucherApplied, setVoucherApplied] = useState(false);
+    const [appliedPromotion, setAppliedPromotion] = useState<PromotionCode | null>(null);
 
     useEffect(() => {
         const loadCustomer = async () => {
@@ -56,14 +57,31 @@ const CartScreen = () => {
         fetchPromotionCode();
     }, []);
 
+    useEffect(() => {
+        // Kiểm tra lại điều kiện voucher khi tổng đơn hàng thay đổi
+        if (appliedPromotion) {
+            const total = calculateSubtotal();
+            if (appliedPromotion.min_value && total < parseFloat(appliedPromotion.min_value)) {
+                Alert.alert('Thông báo', `Đơn hàng không đủ điều kiện áp dụng voucher (tối thiểu ${formatCurrency(parseFloat(appliedPromotion.min_value))})`);
+                handleRemoveVoucher();
+                return;
+            }
+
+            let discountAmount = total * (parseFloat(appliedPromotion.discount_percentage) / 100);
+            if (appliedPromotion.max_value && discountAmount > parseFloat(appliedPromotion.max_value)) {
+                discountAmount = parseFloat(appliedPromotion.max_value);
+            }
+            setDiscount(discountAmount);
+        }
+    }, [cartItems]);
+
     const fetchPromotionCode = async () => {
         try {   
-            const response = await PromotionService.getPromotionCode();
-            const data = handleResponse(response);
-            if (data.success) {
-                console.log(data.data);
-                setPromotionCode(data.data);
-            }
+            const response = await PromotionService.getPromotions();
+            const data = handleResponse(response);  
+            console.log(data);    
+            setPromotionCode(data);
+            
         } catch (error: any) {
             const response = handleResponse(error.response);
             console.log(response);
@@ -81,44 +99,60 @@ const CartScreen = () => {
             return;
         }
 
-        const promotion = promotionCode?.find((p) => p.code == voucher_code);
+        const promotion = promotionCode?.find((p) => p.code === voucher_code);
 
         if (!promotion) {
             Alert.alert('Lỗi', 'Mã khuyến mãi không hợp lệ');
             setDiscount(0);
+            setAppliedPromotion(null);
+            return;
+        }
+
+        const currentDate = new Date();
+        const startDate = new Date(promotion.start_date);
+        const endDate = new Date(promotion.end_date);
+
+        if (currentDate < startDate || currentDate > endDate) {
+            Alert.alert('Lỗi', 'Mã khuyến mãi đã hết hạn hoặc chưa đến thời gian sử dụng');
+            setDiscount(0);
+            setAppliedPromotion(null);
             return;
         }
 
         if (parseInt(promotion.quantity) <= 0) {
             Alert.alert('Lỗi', 'Mã khuyến mãi đã hết lượt sử dụng');
             setDiscount(0);
+            setAppliedPromotion(null);
             return;
         }
 
-        const total = calculateTotal();
+        const total = calculateSubtotal();
 
-        // Kiểm tra điều kiện min_value và max_value
         if (promotion.min_value && total < parseFloat(promotion.min_value)) {
             Alert.alert('Lỗi', `Giá trị đơn hàng tối thiểu phải từ ${formatCurrency(parseFloat(promotion.min_value))}`);
             setDiscount(0);
+            setAppliedPromotion(null);
+            setVoucherCode('');
             return;
         }
 
-        // Kiểm tra max_value
-        if (promotion.max_value) {
-            const discountAmount = total * (parseFloat(promotion.discount_percentage) / 100);
-            if (discountAmount > parseFloat(promotion.max_value)) {
-                const effectiveDiscount = (parseFloat(promotion.max_value) / total) * 100;
-                setDiscount(effectiveDiscount);
-            } else {
-                setDiscount(parseFloat(promotion.discount_percentage));
-            }
-        } else {
-            setDiscount(parseFloat(promotion.discount_percentage));
+        let discountAmount = total * (parseFloat(promotion.discount_percentage) / 100);
+
+        if (promotion.max_value && discountAmount > parseFloat(promotion.max_value)) {
+            discountAmount = parseFloat(promotion.max_value);
         }
 
+        setDiscount(discountAmount);
         setVoucherApplied(true);
-        Alert.alert('Thành công', 'Áp dụng mã khuyến mãi thành công');
+        setAppliedPromotion(promotion);
+        Alert.alert('Thành công', `Áp dụng mã giảm ${formatCurrency(discountAmount)} thành công`);
+    }
+
+    const handleRemoveVoucher = () => {
+        setVoucherCode('');
+        setDiscount(0);
+        setVoucherApplied(false);
+        setAppliedPromotion(null);
     }
 
     const fetchProducts = async () => {
@@ -167,7 +201,19 @@ const CartScreen = () => {
             const discountedPrice = item.discount ? price * (1 - item.discount / 100) : price;
             return total + (discountedPrice * item.quantity);
         }, 0);
-        return discount ? subtotal * (1 - discount / 100) : subtotal;
+        return subtotal - discount;
+    };
+
+    const calculateSubtotal = () => {
+        return cartItems.reduce((total: number, item: any) => {
+            const price = item.selling_price;
+            const discountedPrice = item.discount ? price * (1 - item.discount / 100) : price;
+            return total + (discountedPrice * item.quantity);
+        }, 0);
+    };
+
+    const calculateDiscountAmount = () => {
+        return discount;
     };
 
     const formatCurrency = (amount: number) => {
@@ -321,10 +367,43 @@ const CartScreen = () => {
                     <Text style={tw`text-white font-bold`}>Áp dụng</Text>
                 </TouchableOpacity>
             </View>
-            <View style={tw`flex-row justify-between items-center mb-4`}>
-                <Text style={tw`text-lg font-medium`}>Tổng tiền:</Text>
-                <Text style={tw`text-xl font-bold text-red-500`}>{formatCurrency(calculateTotal())}</Text>
+
+            {appliedPromotion && (
+                <View style={tw`mb-4 p-3 bg-blue-50 rounded-lg`}>
+                    <View style={tw`flex-row justify-between items-center`}>
+                        <View style={tw`flex-row items-center`}>
+                            <Icon name="local-offer" size={20} color="#2563EB" />
+                            <Text style={tw`ml-2 text-blue-600 font-medium`}>
+                                {appliedPromotion.name}
+                            </Text>
+                        </View>
+                        <TouchableOpacity onPress={handleRemoveVoucher}>
+                            <Icon name="close" size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={tw`text-gray-600 text-sm mt-1`}>
+                        Voucher: {appliedPromotion.code}
+                    </Text>
+                </View>
+            )}
+
+            <View style={tw`mb-4`}>
+                <View style={tw`flex-row justify-between items-center mb-2`}>
+                    <Text style={tw`text-gray-600`}>Tạm tính:</Text>
+                    <Text style={tw`text-gray-800 font-medium`}>{formatCurrency(calculateSubtotal())}</Text>
+                </View>
+                {discount > 0 && (
+                    <View style={tw`flex-row justify-between items-center mb-2`}>
+                        <Text style={tw`text-gray-600`}>Giảm giá:</Text>
+                        <Text style={tw`text-green-600 font-medium`}>-{formatCurrency(calculateDiscountAmount())}</Text>
+                    </View>
+                )}
+                <View style={tw`flex-row justify-between items-center pt-2 border-t border-gray-200`}>
+                    <Text style={tw`text-lg font-medium`}>Tổng tiền:</Text>
+                    <Text style={tw`text-xl font-bold text-red-500`}>{formatCurrency(calculateTotal())}</Text>
+                </View>
             </View>
+
             <TouchableOpacity 
                 style={[
                     tw`bg-blue-600 p-4 rounded-lg items-center`,
