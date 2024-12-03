@@ -43,7 +43,7 @@ const ProfileScreen = ({ navigation }) => {
                 phone: editedUser.phone,
                 gioitinh: editedUser.gioitinh,
             }
-            const response = await employeeService.update(username.id, dataRequest);
+            const response = await employeeService.update(user.id, dataRequest);
             const data = handleResponse(response);
             if(data.success) {
                 Alert.alert('Thông báo', data.message);
@@ -170,6 +170,16 @@ const ProfileScreen = ({ navigation }) => {
                         </View>
 
                         <View style={tw`mb-4`}>
+                            <Text style={tw`text-gray-600 mb-2`}>Tuổi</Text>
+                            <TextInput
+                                style={tw`border border-gray-300 rounded-lg p-2`}
+                                value={editedUser.age ? editedUser.age.toString() : ''}
+                                onChangeText={(text) => setEditedUser({...editedUser, age: text})}
+                                keyboardType="numeric"
+                            />
+                        </View>
+
+                        <View style={tw`mb-4`}>
                             <Text style={tw`text-gray-600 mb-2`}>Địa chỉ</Text>
                             <TextInput
                                 style={tw`border border-gray-300 rounded-lg p-2`}
@@ -186,6 +196,24 @@ const ProfileScreen = ({ navigation }) => {
                                 onChangeText={(text) => setEditedUser({...editedUser, phone: text})}
                                 keyboardType="phone-pad"
                             />
+                        </View>
+
+                        <View style={tw`mb-4`}>
+                            <Text style={tw`text-gray-600 mb-2`}>Giới tính</Text>
+                            <View style={tw`flex-row`}>
+                                <TouchableOpacity 
+                                    style={tw`flex-1 p-2 border border-gray-300 rounded-l-lg ${editedUser.gioitinh === 'Nam' ? 'bg-blue-500' : 'bg-white'}`}
+                                    onPress={() => setEditedUser({...editedUser, gioitinh: 'Nam'})}
+                                >
+                                    <Text style={tw`text-center ${editedUser.gioitinh === 'Nam' ? 'text-white' : 'text-gray-700'}`}>Nam</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={tw`flex-1 p-2 border border-gray-300 rounded-r-lg ${editedUser.gioitinh === 'Nữ' ? 'bg-blue-500' : 'bg-white'}`}
+                                    onPress={() => setEditedUser({...editedUser, gioitinh: 'Nữ'})}
+                                >
+                                    <Text style={tw`text-center ${editedUser.gioitinh === 'Nữ' ? 'text-white' : 'text-gray-700'}`}>Nữ</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         <View style={tw`flex-row justify-end mt-4`}>

@@ -13,6 +13,7 @@ const AttendanceNavigation = () => {
             <Stack.Screen 
                 name='AttendanceDetail' 
                 component={AttendanceDetailScreen} 
+                options={{ headerShown: false }}
             />          
         </Stack.Navigator>
     );

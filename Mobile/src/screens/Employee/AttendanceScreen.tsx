@@ -125,7 +125,7 @@ const AttendanceScreen = ({ navigation }: { navigation: NavigationProp }) => {
     navigation.navigate('AttendanceDetail', { 
       caLamViec: todayShift,
       type: type,
-      id_nhanvien: username.id,
+      id_nhanvien: employee.id,
       chamCong: attendance
     });
   };

@@ -82,8 +82,10 @@ const AttendanceDetailScreen = () => {
         navigation.navigate('Attendance' as never);
       }
     } catch (error: any) {
+      console.log(error);
       if (error.response?.status === 400) {
         const err = handleResponse(error.response);
+        console.log(err);
         dispatch(setError(err.message));
         Alert.alert('Chấm công', err.message || 'Không thể chấm công');
       } else {
